@@ -12,7 +12,16 @@ function main() {
 
   const engine = new EngineService();
 
-  engine.analyze(sourceFile);
+  const results = engine.analyze(sourceFile);
+
+  console.log(
+    `Scan finished. Found ${results.length} security vulnerability/vulnerabilities:\n`,
+  );
+  results.forEach((f) => {
+    console.log(`[${f.cwe}] ${f.ruleId}`);
+    console.log(`  File: ${f.file}:${f.line}`);
+    console.log(`  Msg:  ${f.message}\n`);
+  });
 }
 
 main();

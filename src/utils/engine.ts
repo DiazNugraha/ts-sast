@@ -13,25 +13,34 @@ import {
 } from "ts-morph";
 
 export class EngineService {
-  constructor(
-    // private readonly engine: IEngine
-  ) {}
+  constructor() {}
 
-  async analyze(sourceFile: SourceFile) {
+  analyze(sourceFile: SourceFile): IVulnerability[] {
+    const vulns: IVulnerability[] = [];
+
     sourceFile.getStatements().map((node) => {
-      this.nodeHandler(node);
+      const res = this.nodeHandler(node);
+      if (Array.isArray(res)) {
+        vulns.push(...res);
+      } else if (res !== null) {
+        vulns.push(res);
+      }
     });
+
+    return vulns;
   }
 
-  private async nodeHandler(node: Node<ts.Node>) {
+  private nodeHandler(
+    node: Node<ts.Node>,
+  ): IVulnerability | IVulnerability[] | null {
     // Check Variable Declaration
     if (Node.isVariableDeclaration(node)) {
-      this.handleVariableDeclaration(node);
+      return this.handleVariableDeclaration(node);
     }
 
     // Check Variable Statement
     else if (Node.isVariableStatement(node)) {
-      this.handleVariableStatement(node);
+      return this.handleVariableStatement(node);
     }
 
     // Check Assignment Statements
@@ -39,93 +48,162 @@ export class EngineService {
       Node.isBinaryExpression(node) &&
       node.getOperatorToken().getKind() == SyntaxKind.EqualsToken
     ) {
-      this.handleAssigmentStatement(node);
+      return this.handleAssigmentStatement(node);
     }
 
     // Check Call Expression
     else if (Node.isCallExpression(node)) {
-      this.handleCallExpression(node);
+      return this.handleCallExpression(node);
     }
 
     // Check Expression Statement
     else if (Node.isExpressionStatement(node)) {
-      this.handleExpressionStatement(node);
+      return this.handleExpressionStatement(node);
     }
 
     // Check Function Declaration
     else if (Node.isFunctionDeclaration(node)) {
-      this.handleFunctionDeclaration(node);
+      return this.handleFunctionDeclaration(node);
     }
 
     // Check Return Statement
     else if (Node.isReturnStatement(node)) {
-      this.handleReturnStatement(node);
+      return this.handleReturnStatement(node);
     }
+
+    return null;
   }
 
-  private async handleVariableDeclaration(node: VariableDeclaration) {
-    console.log(
-      `[VariableDeclaration] Found var: ${node.getName()} = ${node.getInitializer()?.getText()}`,
-    );
-  }
+  private handleFunctionDeclaration(
+    node: FunctionDeclaration,
+  ): IVulnerability[] {
+    // const params = node
+    //   .getParameters()
+    //   .map((e) => `${e.getName()}: ${e.getType().getText()}`)
+    //   .join(", ");
+    //
+    // console.log(
+    //   `[FunctionDeclaration] Found declaration: ${node.getName()}(${params})`,
+    // );
 
-  private async handleVariableStatement(node: VariableStatement) {
-    node.getDeclarations().map((n) => {
-      this.handleVariableDeclaration(n);
-    });
-  }
+    const vulns: IVulnerability[] = [];
 
-  private async handleAssigmentStatement(node: BinaryExpression) {
-    console.log(
-      `[AssignmentStatement] Found assignment: ${node.getLeft().getText()} = ${node.getRight().getText()}`,
-    );
-  }
-
-  private async handleBinaryExpression(node: BinaryExpression) {
-    console.log(
-      `[BinaryExpression] Found Binary Expression: ${node.getLeft().getText()} ${node.getOperatorToken().getText()} ${node.getRight().getText()}`,
-    );
-  }
-
-  private async handleExpressionStatement(node: ExpressionStatement) {
-    node.forEachChild((n) => {
-      if (Node.isBinaryExpression(n)) {
-        this.handleBinaryExpression(n);
-      }
-    });
-  }
-
-  private async handleCallExpression(node: CallExpression) {
-    const joinArguments = node
-      .getArguments()
-      .map((argument) => argument.getText())
-      .join(", ");
-
-    console.log(
-      `[CallExpression] Found call on: ${node.getText()}; arguments: ${joinArguments}`,
-    );
-  }
-
-  private async handleReturnStatement(node: ReturnStatement) {
-    console.log(`[ReturnStatement] Found return on: ${node.getText()}`);
-  }
-
-  private async handleFunctionDeclaration(node: FunctionDeclaration) {
-    const params = node
-      .getParameters()
-      .map((e) => `${e.getName()}: ${e.getType().getText()}`)
-      .join(", ");
-
-    console.log(
-      `[FunctionDeclaration] Found declaration: ${node.getName()}(${params})`,
-    );
-
-    node.forEachDescendant((nd) => {
+    node.forEachChild((nd) => {
       if (Node.isNode(nd)) {
         nd.forEachDescendant((n) => {
-          this.nodeHandler(n);
+          const res = this.nodeHandler(n);
+          if (Array.isArray(res)) {
+            vulns.push(...res);
+          } else if (res !== null) {
+            vulns.push(res);
+          }
         });
       }
     });
+
+    return vulns;
+  }
+
+  private handleVariableStatement(node: VariableStatement): IVulnerability[] {
+    const vulns: IVulnerability[] = [];
+
+    node.getDeclarations().map((n) => {
+      const res = this.handleVariableDeclaration(n);
+      if (res) vulns.push(res);
+    });
+
+    return vulns;
+  }
+
+  private handleExpressionStatement(
+    node: ExpressionStatement,
+  ): IVulnerability[] {
+    const vulns: IVulnerability[] = [];
+
+    node.forEachChild((n) => {
+      if (Node.isBinaryExpression(n)) {
+        const res = this.handleBinaryExpression(n);
+        if (res) vulns.push(res);
+      }
+    });
+
+    return vulns;
+  }
+
+  private handleVariableDeclaration(
+    node: VariableDeclaration,
+  ): IVulnerability | null {
+    // console.log(
+    //   `[VariableDeclaration] Found var: ${node.getName()} = ${node.getInitializer()?.getText()}`,
+    // );
+
+    return null;
+  }
+
+  private handleAssigmentStatement(
+    node: BinaryExpression,
+  ): IVulnerability | null {
+    // console.log(
+    //   `[AssignmentStatement] Found assignment: ${node.getLeft().getText()} = ${node.getRight().getText()}`,
+    // );
+
+    return null;
+  }
+
+  private handleBinaryExpression(
+    node: BinaryExpression,
+  ): IVulnerability | null {
+    // console.log(
+    //   `[BinaryExpression] Found Binary Expression: ${node.getLeft().getText()} ${node.getOperatorToken().getText()} ${node.getRight().getText()}`,
+    // );
+
+    return null;
+  }
+
+  private handleCallExpression(node: CallExpression): IVulnerability | null {
+    const dangerousSinks = [
+      "exec",
+      "execSync",
+      "spawn",
+      "spawnSync",
+      "shell.exec", // common in shelljs
+    ];
+
+    const exprText = node.getExpression().getText();
+
+    const isSinkMatch = dangerousSinks.some(
+      (ds) => exprText == ds || exprText.endsWith(`.${ds}`),
+    );
+
+    if (!isSinkMatch) return null;
+
+    const args = node.getArguments();
+    if (args.length === 0) return null;
+
+    const firstArg = args[0];
+    const isLiteral =
+      Node.isStringLiteral(firstArg) ||
+      Node.isNoSubstitutionTemplateLiteral(firstArg);
+
+    const isConcatinated =
+      Node.isBinaryExpression(firstArg) &&
+      firstArg.getOperatorToken().getKind() === SyntaxKind.PlusToken;
+
+    if (!isLiteral || isConcatinated) {
+      return {
+        file: node.getSourceFile().getFilePath(),
+        ruleId: "javascript-lang-cmdi-dangerous-spawn-shell-taint",
+        cwe: "CWE-78",
+        message: `Potential OS Command Injection detected. Untrusted input flows into execution sink '${exprText}'.`,
+        line: node.getStartLineNumber(),
+      };
+    }
+
+    return null;
+  }
+
+  private handleReturnStatement(node: ReturnStatement): IVulnerability | null {
+    // console.log(`[ReturnStatement] Found return on: ${node.getText()}`);
+    return null;
   }
 }
