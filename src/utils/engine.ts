@@ -137,6 +137,48 @@ export class EngineService {
     // console.log(
     //   `[VariableDeclaration] Found var: ${node.getName()} = ${node.getInitializer()?.getText()}`,
     // );
+    const varName = node.getName();
+
+    const initializer = node.getInitializer();
+
+    if (!initializer) {
+      console.log(`[Variable] ${varName} has no initializer.`);
+      return null;
+    }
+
+    // Check if the right-hand side is an Arrow Function or Function Expression
+    if (
+      Node.isArrowFunction(initializer) ||
+      Node.isFunctionExpression(initializer)
+    ) {
+      // console.log(`[Function Assigned] '${varName}' is assigned a function.`);
+      // Inspect parameters or body of the assigned function
+      // const paramCount = initializer.getParameters().length;
+      // console.log(`  -> Parameters count: ${paramCount}`);
+    }
+
+    // Check if the right-hand side is a Function Call (e.g., `const user = getUser();`)
+    else if (Node.isCallExpression(initializer)) {
+      // console.log(
+      //   `[Function Call Assigned] '${varName}' is assigned the result of: ${initializer.getExpression().getText()}`,
+      // );
+
+      return this.handleCallExpression(initializer);
+    }
+
+    // Check if the right-hand side is a Static Literal Value (e.g., string, number, boolean)
+    else if (Node.isLiteralExpression(initializer)) {
+      // console.log(
+      //   `[Static Value Assigned] '${varName}' = ${initializer.getText()}`,
+      // );
+    }
+
+    // Fallback for other expressions (Binary expressions like `a + b`, object literals `{...}`, etc.)
+    else {
+      // console.log(
+      //   `[Expression Assigned] '${varName}' is assigned a ${initializer.getKindName()}: ${initializer.getText()}`,
+      // );
+    }
 
     return null;
   }
