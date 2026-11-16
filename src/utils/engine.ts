@@ -3,6 +3,7 @@ import {
   CallExpression,
   ExpressionStatement,
   FunctionDeclaration,
+  NewExpression,
   Node,
   ReturnStatement,
   SourceFile,
@@ -12,9 +13,15 @@ import {
   VariableStatement,
 } from "ts-morph";
 import { CallExpressionService } from "../services";
+import { NewExpressionService } from "../services/new-expression.service";
 
 export class EngineService {
-  constructor(private readonly callExpressionService: CallExpressionService) {}
+  constructor() {}
+
+  private readonly callExpressionService: CallExpressionService =
+    new CallExpressionService();
+  private readonly newExpressionService: NewExpressionService =
+    new NewExpressionService();
 
   analyze(sourceFile: SourceFile): IVulnerability[] {
     const vulns: IVulnerability[] = [];
@@ -172,6 +179,13 @@ export class EngineService {
       // );
     }
 
+    // Check if the right-hand side is a new Function assignment
+    else if (Node.isNewExpression(initializer)) {
+      console.log(
+        `[New Expression Assigned] '${varName}' is assigned a ${initializer.getKindName()}: ${initializer.getText()}`,
+      );
+      return this.handleNewExpression(initializer);
+    }
     // Fallback for other expressions (Binary expressions like `a + b`, object literals `{...}`, etc.)
     else {
       // console.log(
@@ -203,7 +217,11 @@ export class EngineService {
   }
 
   private handleCallExpression(node: CallExpression): IVulnerability[] {
-    return this.callExpressionService.analyze(node) ?? [];
+    return this.callExpressionService.analyze(node);
+  }
+
+  private handleNewExpression(node: NewExpression): IVulnerability[] {
+    return this.newExpressionService.analyze(node);
   }
 
   private handleReturnStatement(node: ReturnStatement): IVulnerability | null {

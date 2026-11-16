@@ -1,6 +1,5 @@
 import { Project } from "ts-morph";
 import { EngineService } from "./utils";
-import { CallExpressionService } from "./services";
 import path from "path";
 
 function main() {
@@ -8,8 +7,7 @@ function main() {
     tsConfigFilePath: "tsconfig.json",
   });
 
-  const callExpressionService = new CallExpressionService();
-  const engine = new EngineService(callExpressionService);
+  const engine = new EngineService();
 
   const targetFiles = project.getSourceFiles().filter((sourceFile) => {
     const filePath = sourceFile.getFilePath();
