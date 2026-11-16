@@ -1,23 +1,32 @@
 import { CallExpression, Node, SyntaxKind } from "ts-morph";
-import { checkCWE328WeakHash, checkCWE78cmdi } from "../rules";
+import { checkCWE328WeakHash, checkCWE78cmdi, checkCWE95Eval } from "../rules";
 import { getFirstExpressionNode } from "../helpers";
 
 export class CallExpressionService {
   constructor() {}
 
-  checkCommandInjection(node: CallExpression): IVulnerability | null {
+  analyze(node: CallExpression): IVulnerability[] {
     const expressionNode = getFirstExpressionNode(node);
     const exprText = expressionNode.getExpression().getText();
 
+    const vulns: IVulnerability[] = [];
+
     if (checkCWE78cmdi(exprText)) {
-      return this.checkCWE78cmdi(expressionNode);
+      const res = this.checkCWE78cmdi(expressionNode);
+      if (res) vulns.push(res);
+    }
+
+    if (checkCWE95Eval(exprText)) {
+      const res = this.checkCWE95Eval(expressionNode);
+      if (res) vulns.push(res);
     }
 
     if (checkCWE328WeakHash(exprText)) {
-      return this.checkCWE328WeakHash(expressionNode);
+      const res = this.checkCWE328WeakHash(expressionNode);
+      if (res) vulns.push(res);
     }
 
-    return null;
+    return vulns;
   }
 
   private checkCWE78cmdi(node: CallExpression): IVulnerability | null {
@@ -35,24 +44,72 @@ export class CallExpressionService {
       Node.isBinaryExpression(firstArg) &&
       firstArg.getOperatorToken().getKind() === SyntaxKind.PlusToken;
 
-    if (!isLiteral) {
-      if (isConcatinated) {
-        return {
-          file: node.getSourceFile().getFilePath(),
-          ruleId: "javascript-lang-cmdi-dangerous-spawn-shell-taint",
-          cwe: "CWE-78",
-          message: `Potential OS Command Injection detected. Untrusted input flows into execution sink '${exprText}'.`,
-          line: node.getStartLineNumber(),
-        };
-      }
-
+    if (!isLiteral || isConcatinated) {
       return {
         file: node.getSourceFile().getFilePath(),
-        ruleId: "javascript-lang-cmdi-detect-eval-taint",
-        cwe: "CWE-95",
+        ruleId: "javascript-lang-cmdi-dangerous-spawn-shell-taint",
+        cwe: "CWE-78",
         message: `Potential OS Command Injection detected. Untrusted input flows into execution sink '${exprText}'.`,
         line: node.getStartLineNumber(),
       };
+    }
+
+    return null;
+  }
+
+  private checkCWE95Eval(node: CallExpression): IVulnerability | null {
+    const exprText = node.getExpression().getText();
+
+    if (exprText === "eval") {
+      const args = node.getArguments();
+      if (args.length > 0) {
+        const firstArg = args[0];
+        const isLiteral =
+          Node.isStringLiteral(firstArg) ||
+          Node.isNoSubstitutionTemplateLiteral(firstArg);
+
+        if (!isLiteral || Node.isBinaryExpression(firstArg)) {
+          return {
+            file: node.getSourceFile().getFilePath(),
+            ruleId: "cwe-95-eval-injection",
+            cwe: "CWE-95",
+            message:
+              "Potential Eval Injection detected. Dynamic or untrusted input is passed into `eval()`.",
+            line: node.getStartLineNumber(),
+          };
+        }
+      }
+    }
+
+    if (exprText === "setTimeout" || exprText === "setInterval") {
+      const args = node.getArguments();
+
+      if (
+        args.length > 0 &&
+        (Node.isStringLiteral(args[0]) || Node.isBinaryExpression(args[0]))
+      ) {
+        return {
+          file: node.getSourceFile().getFilePath(),
+          ruleId: "cwe-95-eval-timer",
+          cwe: "CWE-95",
+          message:
+            "Code injection risk: passing a string argument to timers acts like `eval()`. Use a callback function instead.",
+          line: node.getStartLineNumber(),
+        };
+      }
+    }
+
+    if (Node.isNewExpression(node)) {
+      if (exprText === "Function") {
+        return {
+          file: node.getSourceFile().getFilePath(),
+          ruleId: "cwe-95-dynamic-function",
+          cwe: "CWE-95",
+          message:
+            "Use of `new Function()` constructor is equivalent to `eval()` and can lead to arbitrary code execution.",
+          line: node.getStartLineNumber(),
+        };
+      }
     }
 
     return null;

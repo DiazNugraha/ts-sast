@@ -52,11 +52,6 @@ export class EngineService {
       return this.handleAssigmentStatement(node);
     }
 
-    // Check Call Expression
-    else if (Node.isCallExpression(node)) {
-      return this.handleCallExpression(node);
-    }
-
     // Check Expression Statement
     else if (Node.isExpressionStatement(node)) {
       return this.handleExpressionStatement(node);
@@ -110,7 +105,7 @@ export class EngineService {
 
     node.getDeclarations().map((n) => {
       const res = this.handleVariableDeclaration(n);
-      if (res) vulns.push(res);
+      if (res) vulns.push(...res);
     });
 
     return vulns;
@@ -126,6 +121,10 @@ export class EngineService {
         const res = this.handleBinaryExpression(n);
         if (res) vulns.push(res);
       }
+      if (Node.isCallExpression(n)) {
+        const res = this.handleCallExpression(n);
+        if (res) vulns.push(...res);
+      }
     });
 
     return vulns;
@@ -133,7 +132,7 @@ export class EngineService {
 
   private handleVariableDeclaration(
     node: VariableDeclaration,
-  ): IVulnerability | null {
+  ): IVulnerability[] {
     // console.log(
     //   `[VariableDeclaration] Found var: ${node.getName()} = ${node.getInitializer()?.getText()}`,
     // );
@@ -143,7 +142,7 @@ export class EngineService {
 
     if (!initializer) {
       console.log(`[Variable] ${varName} has no initializer.`);
-      return null;
+      return [];
     }
 
     // Check if the right-hand side is an Arrow Function or Function Expression
@@ -180,7 +179,7 @@ export class EngineService {
       // );
     }
 
-    return null;
+    return [];
   }
 
   private handleAssigmentStatement(
@@ -203,8 +202,8 @@ export class EngineService {
     return null;
   }
 
-  private handleCallExpression(node: CallExpression): IVulnerability | null {
-    return this.callExpressionService.checkCommandInjection(node);
+  private handleCallExpression(node: CallExpression): IVulnerability[] {
+    return this.callExpressionService.analyze(node) ?? [];
   }
 
   private handleReturnStatement(node: ReturnStatement): IVulnerability | null {

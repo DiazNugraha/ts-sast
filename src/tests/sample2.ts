@@ -10,3 +10,8 @@ import crypto from "crypto";
 
 // This will trigger the CWE-328 rule
 const hash = crypto.createHash("md5").update("xxx").digest("hex");
+const input = "";
+
+eval(input);
+
+const unsafeFunc = new Function("a", "b", "return " + input);
