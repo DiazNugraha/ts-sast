@@ -1,5 +1,10 @@
 import { CallExpression, Node, SyntaxKind } from "ts-morph";
-import { checkCWE328WeakHash, checkCWE78cmdi, checkCWE95Eval } from "../rules";
+import {
+  checkCWE328WeakHash,
+  checkCWE78cmdi,
+  checkCWE89SqlInjection,
+  checkCWE95Eval,
+} from "../rules";
 import { getFirstExpressionNode } from "../helpers";
 
 export class CallExpressionService {
@@ -23,6 +28,12 @@ export class CallExpressionService {
 
     if (checkCWE328WeakHash(exprText)) {
       const res = this.checkCWE328WeakHash(expressionNode);
+      if (res) vulns.push(res);
+    }
+
+    if (checkCWE89SqlInjection(exprText)) {
+      console.log("expr texrt", exprText);
+      const res = this.checkCWE89SqlInjection(expressionNode);
       if (res) vulns.push(res);
     }
 
@@ -139,6 +150,36 @@ export class CallExpressionService {
         ruleId: "cwe-328-weak-hash",
         cwe: "CWE-328",
         message: `Insecure cryptographic hash algorithm detected (${args[0].getText()}). MD5 and SHA-1 are cryptographically broken and vulnerable to collision attacks.`,
+        line: node.getStartLineNumber(),
+      };
+    }
+
+    return null;
+  }
+
+  private checkCWE89SqlInjection(node: CallExpression): IVulnerability | null {
+    const exprText = node.getExpression().getText();
+
+    const args = node.getArguments();
+    if (args.length === 0) return null;
+
+    const firstArg = args[0];
+    const isLiteral =
+      Node.isStringLiteral(firstArg) ||
+      Node.isNoSubstitutionTemplateLiteral(firstArg);
+
+    const isConcatinated =
+      Node.isBinaryExpression(firstArg) &&
+      firstArg.getOperatorToken().getKind() === SyntaxKind.PlusToken;
+
+    console.log("flag", firstArg.getFullText());
+
+    if (!isLiteral || isConcatinated) {
+      return {
+        file: node.getSourceFile().getFilePath(),
+        ruleId: "javascript-lang-sqli-taint",
+        cwe: "CWE-89",
+        message: `Potential SQL Injection detected. Untrusted input flows into execution sink '${exprText}'.`,
         line: node.getStartLineNumber(),
       };
     }

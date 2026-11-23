@@ -12,3 +12,26 @@ export function runUserCommand(userInput: string) {
   exec("ls -la " + userInput);
   exec(`ls -la ${userInput}`);
 }
+
+const input = "";
+
+// mysql_query(
+//   "SELECT * FROM items WHERE owner = '" +
+//     input +
+//     "' AND itemname = '" +
+//     input +
+//     "'",
+// );
+//
+// db.query(
+//   // "SELECT id, email FROM users WHERE active = 1"
+//   "SELECT * FROM items WHERE owner = '" +
+//     input +
+//     "' AND itemname = '" +
+//     input +
+//     "'",
+// );
+
+const query = `SELECT * FROM users WHERE email = '${req.body.email}'`;
+// const query = `SELECT * FROM users WHERE email =`;
+db.query(query);
