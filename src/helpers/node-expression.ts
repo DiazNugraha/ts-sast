@@ -1,4 +1,4 @@
-import { CallExpression, SyntaxKind } from "ts-morph";
+import { CallExpression, Node, SyntaxKind } from "ts-morph";
 
 export function getOriginalFunctionName(
   node: CallExpression,
@@ -26,4 +26,34 @@ export function getFirstExpressionNode(node: CallExpression): CallExpression {
   if (nodeDescendants.length < 1) return node;
 
   return nodeDescendants[nodeDescendants.length - 1];
+}
+
+export function isDynamicNode(node: Node): boolean {
+  if (
+    Node.isStringLiteral(node) ||
+    Node.isNoSubstitutionTemplateLiteral(node) ||
+    Node.isNumericLiteral(node)
+  ) {
+    return false;
+  }
+
+  // Template literal with expressions, e.g. `/uploads/${fileName}`
+  if (Node.isTemplateExpression(node)) {
+    return node.getTemplateSpans().length > 0;
+  }
+
+  // String concatenation, e.g. "/uploads/" + fileName
+  if (
+    Node.isBinaryExpression(node) &&
+    node.getOperatorToken().getKind() === SyntaxKind.PlusToken
+  ) {
+    return true;
+  }
+
+  // Variables, property accesses (req.params.file), or function calls
+  return (
+    Node.isIdentifier(node) ||
+    Node.isPropertyAccessExpression(node) ||
+    Node.isCallExpression(node)
+  );
 }
