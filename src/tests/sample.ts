@@ -35,3 +35,6 @@ const input = "";
 const query = `SELECT * FROM users WHERE email = '${req.body.email}'`;
 // const query = `SELECT * FROM users WHERE email =`;
 db.query(query);
+
+const fullPath = path.join("/var/data/uploads", fileName);
+fs.readFileSync(fullPath, "utf8");

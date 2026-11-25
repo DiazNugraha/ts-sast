@@ -1,11 +1,12 @@
 import { CallExpression, Node, SyntaxKind } from "ts-morph";
 import {
+  checkCWE22PathTraversal,
   checkCWE328WeakHash,
   checkCWE78cmdi,
   checkCWE89SqlInjection,
   checkCWE95Eval,
 } from "../rules";
-import { getFirstExpressionNode } from "../helpers";
+import { getFirstExpressionNode, isDynamicNode } from "../helpers";
 
 export class CallExpressionService {
   constructor() {}
@@ -32,8 +33,12 @@ export class CallExpressionService {
     }
 
     if (checkCWE89SqlInjection(exprText)) {
-      console.log("expr texrt", exprText);
       const res = this.checkCWE89SqlInjection(expressionNode);
+      if (res) vulns.push(res);
+    }
+
+    if (checkCWE22PathTraversal(exprText)) {
+      const res = this.checkCWE22PathTraversal(expressionNode);
       if (res) vulns.push(res);
     }
 
@@ -172,14 +177,33 @@ export class CallExpressionService {
       Node.isBinaryExpression(firstArg) &&
       firstArg.getOperatorToken().getKind() === SyntaxKind.PlusToken;
 
-    console.log("flag", firstArg.getFullText());
-
     if (!isLiteral || isConcatinated) {
       return {
         file: node.getSourceFile().getFilePath(),
         ruleId: "javascript-lang-sqli-taint",
         cwe: "CWE-89",
         message: `Potential SQL Injection detected. Untrusted input flows into execution sink '${exprText}'.`,
+        line: node.getStartLineNumber(),
+      };
+    }
+
+    return null;
+  }
+
+  checkCWE22PathTraversal(node: CallExpression): IVulnerability | null {
+    const methodName = node.getText();
+
+    const args = node.getArguments();
+    if (args.length === 0) return null;
+
+    const hasDynamicInput = args.some((arg) => isDynamicNode(arg));
+
+    if (hasDynamicInput) {
+      return {
+        file: node.getSourceFile().getFilePath(),
+        ruleId: "cwe-22-path-traversal",
+        cwe: "CWE-22",
+        message: `Potential Path Traversal detected in '${methodName}'. Verify and canonicalize the resolved path against a safe base directory.`,
         line: node.getStartLineNumber(),
       };
     }
